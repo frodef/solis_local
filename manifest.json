@@ -1,0 +1,13 @@
+{
+  "domain": "solis_local",
+  "name": "Solis_local",
+  "codeowners": ["@frodef"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://www.home-assistant.io/integrations/solis_local",
+  "homekit": {},
+  "iot_class": "local_polling",
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": []
+}
