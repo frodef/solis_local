@@ -17,12 +17,11 @@ from .solis_local import AuthorizationFailed, ConnectionFailed, SolisLocalHttpAP
 
 _LOGGER = logging.getLogger(__name__)
 
-# XTODO fix defaults
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("host", default="192.168.1.166"): str,
+        vol.Required("host"): str,
         vol.Required("username", default="admin"): str,
-        vol.Required("password", default="gbgfvf"): str,
+        vol.Required("password", default="admin"): str,
     }
 )
 
