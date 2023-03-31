@@ -43,12 +43,12 @@ def solis_logger_url(host: str) -> str:
 class SolisLocalHttpAPI:
     """Access Solis logger via local HTTP, i.e. built-in server on the logger device."""
 
-    def __init__(self, data) -> None:
+    def __init__(self, host: str, username: str, password: str) -> None:
         """Initialize."""
-        self.host = data["host"]
+        self.host = host
+        self.username = username
+        self.password = password
         self.url = solis_logger_url(self.host)
-        self.username = data["username"]
-        self.password = data["password"]
 
     async def load_status(self) -> dict:
         """Test if we can authenticate with the host."""

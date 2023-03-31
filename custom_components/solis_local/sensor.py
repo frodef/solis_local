@@ -2,6 +2,8 @@
 
 from datetime import timedelta
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass
 
 import async_timeout
 
@@ -9,9 +11,10 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
+    SensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfPower
+from homeassistant.const import UnitOfPower, UnitOfEnergy, PERCENTAGE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -19,19 +22,58 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
+from .const import DOMAIN
 from .solis_local import SolisLocalHttpAPI
 
 _LOGGER = logging.getLogger(__name__)
 
 
-# async def async_setup_platform(
-#     hass: HomeAssistant,
-#     config: ConfigType,
-#     async_add_entities: AddEntitiesCallback = None,
-#     discovery_info: DiscoveryInfoType | None = None,
-# ) -> None:
-#     """Set up Solis Local platform."""
-#     pass
+@dataclass
+class SolisEntityDescriptionMixin:
+    """Describe a Solis entity."""
+
+    parse: Callable
+
+
+@dataclass
+class SolisEntityDescription(SensorEntityDescription, SolisEntityDescriptionMixin):
+    """Describe a Solis entity slot."""
+
+
+_SOLIS_VARIABLES = (
+    SolisEntityDescription(
+        key="webdata_now_p",
+        name="Solis Power Now",
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        parse=float,
+    ),
+    SolisEntityDescription(
+        key="webdata_today_e",
+        name="Solis Energy Today",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        parse=float,
+    ),
+    SolisEntityDescription(
+        key="webdata_total_e",
+        name="Solis Energy Total",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        parse=float,
+    ),
+    SolisEntityDescription(
+        key="cover_sta_rssi",
+        name="Solis WiFi connection quality",
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=None,
+        native_unit_of_measurement=PERCENTAGE,
+        parse=lambda s: float(s.split("%")[0]),
+    ),
+)
 
 
 async def async_setup_entry(
@@ -39,10 +81,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up an entry."""
     _LOGGER.debug("setup_entry: %s", entry.as_dict())
-    #    my_api = hass.data[DOMAIN][entry.entry_id]
-    my_api = SolisLocalHttpAPI(
-        data={"host": "192.168.1.166", "username": "admin", "password": "gbgfvf"}
-    )
+    my_api = hass.data[DOMAIN][entry.entry_id]
     coordinator = MyCoordinator(hass, my_api)
 
     # Fetch initial data so we have data when entities subscribe
@@ -54,7 +93,10 @@ async def async_setup_entry(
     # coordinator.async_refresh() instead
     #
     await coordinator.async_config_entry_first_refresh()
-    async_add_entities([MyEntity(coordinator)])
+    async_add_entities(
+        MyEntity(coordinator, description, entry.entry_id)
+        for description in _SOLIS_VARIABLES
+    )
 
 
 class MyCoordinator(DataUpdateCoordinator):
@@ -106,21 +148,26 @@ class MyEntity(CoordinatorEntity, SensorEntity):
 
     """
 
-    _attr_name = "Solis Local Entity FVF"
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_device_class = SensorDeviceClass.POWER
-    _attr_native_unit_of_measurement = UnitOfPower.WATT
-
-    # def __init__(self, coordinator):
-    #     """Pass coordinator to CoordinatorEntity."""
-    #     super().__init__(coordinator)
-    #     self.idx = idx
+    def __init__(
+        self, coordinator, description: SolisEntityDescription, entry_id: str
+    ) -> None:
+        """Pass coordinator to CoordinatorEntity."""
+        super().__init__(coordinator)
+        self.var_name = description.key
+        # self._attr_name = DOMAIN + "_" + spec["name"]
+        # self._attr_state_class = spec["state-class"]
+        # self._attr_device_class = spec["device-class"]
+        # self._attr_native_unit_of_measurement = spec["unit"]
+        self.parser = description.parse
+        self.entity_description = description
+        self.entity_id = f"sensor.solis_local_{description.key}"
+        self._attr_unique_id = f"{entry_id}-{description.key}"
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         #        _LOGGER.debug("Entity update: %s", self.coordinator.data)
-        value = self.coordinator.data["webdata_now_p"]
+        value = self.coordinator.data[self.var_name]
         if value:
-            self._attr_native_value = float(value)
+            self._attr_native_value = self.parser(value)
             self.async_write_ha_state()

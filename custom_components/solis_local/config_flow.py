@@ -32,13 +32,18 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
     Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
     """
-    api = SolisLocalHttpAPI(data)
+    api = SolisLocalHttpAPI(data["host"], data["username"], data["password"])
     info = await api.load_status()
-    #    raise InvalidAuth
-    _LOGGER.debug("info: %s", info)
+    #    _LOGGER.debug("info: %s", info)
 
     # Return info that you want to store in the config entry.
-    return info
+    return {
+        "info": info,
+        "title": "Info-Title!",
+        "host": data["host"],
+        "username": data["username"],
+        "password": data["password"],
+    }
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -61,11 +66,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             info = await validate_input(self.hass, user_input)
-            if info["webdata_sn"]:
-                await self.async_set_unique_id(info["webdata_sn"])
+            if info["info"]["webdata_sn"]:
+                await self.async_set_unique_id(info["info"]["webdata_sn"])
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=f"Solis Local {info['webdata_sn']}", data=info
+                    title=f"Solis Local {info['info']['webdata_sn']}",
+                    data=info,
                 )
         except ConnectionFailed:
             errors["base"] = "cannot_connect"
