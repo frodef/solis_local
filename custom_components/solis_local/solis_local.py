@@ -55,7 +55,7 @@ class SolisLocalHttpAPI:
             "GET",
             self.url,
             auth=aiohttp.BasicAuth(self.username, self.password),
-            timeout=aiohttp.ClientTimeout(total=5),
+            timeout=aiohttp.ClientTimeout(total=15),
         ) as response:
             if response.status == HTTPStatus.OK:
                 return parse_status_html(await response.text())
