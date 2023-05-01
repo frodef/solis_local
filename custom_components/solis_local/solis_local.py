@@ -2,7 +2,6 @@
 
 from http import HTTPStatus
 import logging
-
 import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
@@ -12,7 +11,7 @@ class AuthorizationFailed(Exception):
     """HTTP authorization towards Solis Logger failed."""
 
 
-class ConnectionFailed(Exception):
+class ConnectionFailed(ConnectionError):
     """HTTP connection to Solis Logger failed."""
 
 
@@ -22,7 +21,7 @@ def parse_status_html(status_html: str) -> dict:
     for line in [
         line.split(" ", 1)[1].split(";", 1)[0]
         for line in status_html.splitlines()
-        if line.startswith("var")
+        if line.startswith("var ")
     ]:
         [variable, value] = [a.strip() for a in line.split("=", 2)]
         if [x for x in ("webdata", "cover", "status") if variable.startswith(x)]:
@@ -56,7 +55,7 @@ class SolisLocalHttpAPI:
             "GET",
             self.url,
             auth=aiohttp.BasicAuth(self.username, self.password),
-            timeout=aiohttp.ClientTimeout(total=10),
+            timeout=aiohttp.ClientTimeout(total=5),
         ) as response:
             if response.status == HTTPStatus.OK:
                 return parse_status_html(await response.text())

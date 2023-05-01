@@ -133,6 +133,8 @@ class MyCoordinator(DataUpdateCoordinator):
         #           raise ConfigEntryAuthFailed from err
         #       except ApiError as err:
         #           raise UpdateFailed(f"Error communicating with API: {err}")
+        except (ConnectionError, OSError):
+            return {"webdata_now_p": "0"}
         finally:
             pass
 
@@ -167,7 +169,7 @@ class MyEntity(CoordinatorEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         #        _LOGGER.debug("Entity update: %s", self.coordinator.data)
-        value = self.coordinator.data[self.var_name]
-        if value:
+        if self.var_name in self.coordinator.data:
+            value = self.coordinator.data[self.var_name]
             self._attr_native_value = self.parser(value)
             self.async_write_ha_state()
