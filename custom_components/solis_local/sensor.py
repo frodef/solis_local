@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import async_timeout
+from aiohttp import ClientError
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -133,7 +134,7 @@ class MyCoordinator(DataUpdateCoordinator):
         #           raise ConfigEntryAuthFailed from err
         #       except ApiError as err:
         #           raise UpdateFailed(f"Error communicating with API: {err}")
-        except (ConnectionError, OSError):
+        except (ConnectionError, OSError, ClientError):
             return {"webdata_now_p": "0"}
         finally:
             pass
